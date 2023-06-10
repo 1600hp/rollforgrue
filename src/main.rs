@@ -5,8 +5,13 @@ use iced::widget::text;
 mod dice;
 mod environment;
 mod pc;
+mod debug;
+
+static DEBUG: debug::Debug = debug::Debug {};
 
 pub fn main() -> iced::Result {
+    log::set_logger(&DEBUG).unwrap();
+    log::set_max_level(log::LevelFilter::Warn);
     RollForGrue::run(Settings::default())
 }
 
@@ -31,7 +36,7 @@ impl Application for RollForGrue {
 
     fn new(_flags: ()) -> (RollForGrue, Command<Self::Message>) {
         let mut app: RollForGrue = RollForGrue {dice: dice::Dice::new(), last_result: 0};
-        let command = app.update(Self::Message::TestMessage);
+        let command: Command<GrueMessage> = app.update(Self::Message::TestMessage);
         (app, command)
     }
 
