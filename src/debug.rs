@@ -16,9 +16,7 @@ impl log::Log for Debug {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
         // TODO: Redirect non-rollforgrue messages elsewhere.
         // (Or perhaps allow them with a higher minimum severity.)
-        let is_local: bool = metadata.target().starts_with("rollforgrue");
-        // TODO: Make this configurable.
-        is_local && metadata.level() <= log::Level::Info
+        metadata.target().starts_with("rollforgrue")
     }
 
     fn log(&self, record: &log::Record) {

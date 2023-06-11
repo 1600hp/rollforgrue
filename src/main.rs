@@ -11,7 +11,7 @@ static DEBUG: debug::Debug = debug::Debug {};
 
 pub fn main() -> iced::Result {
     log::set_logger(&DEBUG).unwrap();
-    log::set_max_level(log::LevelFilter::Warn);
+    log::set_max_level(log::LevelFilter::Info);
     RollForGrue::run(Settings::default())
 }
 

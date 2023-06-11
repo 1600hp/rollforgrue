@@ -75,7 +75,7 @@ impl Dice {
     fn d_flat(&self, d: u8, modifier: i8) -> i8 {
         let mut borrowed_rng: std::cell::RefMut<ThreadRng> = self.rng.borrow_mut();
         let result: i8 = borrowed_rng.gen_range(1..=d) as i8 + modifier;
-        log::warn!("Rolling 1d{} + {} = {}", d, modifier, result);
+        log::info!("Rolling 1d{} + {} = {}", d, modifier, result);
         result
     }
 
