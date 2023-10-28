@@ -63,9 +63,9 @@ impl FromStr for Proficiency {
 /// sheet, in that it encapsulates the rules for rolling for
 /// various checks alongside the values that numerically affect
 /// the outcome.
-pub struct PC<'a> {
+pub struct PC {
     /// The source of randomness that a character uses to make rolls.
-    dice: &'a Dice,
+    dice: Dice,
     /// A mapping from ability to ability score.
     abilities: HashMap<Ability, u8>,
     /// A mapping from proficiency to proficiency level.
@@ -80,12 +80,12 @@ pub struct PC<'a> {
     darkvision: bool,
 }
 
-impl PC<'_> {
+impl PC {
     /// Create a character from a configuration file.
     ///
-    /// * `dice` - The dice that the PC will use to generate randomness.
     /// * `config` - A JSON configuration file which lays out the character's attributes.
-    pub fn new<'a, 'b>(dice: &'a Dice, config: &'b mut File) -> std::io::Result<PC<'a>> {
+    pub fn new<'a, 'b>(config: &'b mut File) -> std::io::Result<PC> {
+        let dice: Dice = Dice::new();
         let mut abilities: HashMap<Ability, u8> = HashMap::new();
         let mut proficiencies: HashMap<Proficiency, u8> = HashMap::new();
 
