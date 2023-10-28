@@ -1,3 +1,4 @@
+use environment::Lighting;
 use iced::executor;
 use iced::{Application, Command, Element, Settings, Theme};
 
@@ -32,16 +33,18 @@ pub fn main() -> iced::Result {
 struct RollForGrue{
     last_result: i8,
     pcs: std::vec::Vec<pc::PC>,
+    light_level: Lighting,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum GrueMessage {
     TestMessage,
-    ValueUpdated(u8)
+    ValueUpdated(u8),
+    LightingSelected(Lighting),
 }
 
 impl <'a> RollForGrue {
-    fn roll_slider(value: u8, roll_type: &'a str) -> iced::widget::Container<'a, GrueMessage, iced::Renderer> {
+    fn roll_slider(& self, value: u8, roll_type: &'a str) -> iced::widget::Container<'a, GrueMessage, iced::Renderer> {
         let v_slider = iced::widget::vertical_slider(0u8..=30u8, value, <RollForGrue as iced::Application>::Message::ValueUpdated);
         let text = iced::widget::text(format!("{value}"));
         iced::widget::container(
@@ -53,6 +56,19 @@ impl <'a> RollForGrue {
                     .width(100).center_x(),
                 iced::widget::container(roll_type)
                     .width(100).center_x(),
+            ]
+        )
+    }
+
+    fn light_toggle(& self) -> iced::widget::Container<'a, GrueMessage, iced::Renderer> {
+        let dark_button: iced::widget::Radio<GrueMessage, iced::Renderer> = iced::widget::radio("Dark", Lighting::Dark, Some(self.light_level), GrueMessage::LightingSelected);
+        let dim_button: iced::widget::Radio<GrueMessage, iced::Renderer> = iced::widget::radio("Dim", Lighting::Dim, Some(self.light_level), GrueMessage::LightingSelected);
+        let bright_button: iced::widget::Radio<GrueMessage, iced::Renderer> = iced::widget::radio("Bright", Lighting::Light, Some(self.light_level), GrueMessage::LightingSelected);
+        iced::widget::container(
+            iced::widget::row![
+                iced::widget::container(dark_button),
+                iced::widget::container(dim_button),
+                iced::widget::container(bright_button),
             ]
         )
     }
@@ -70,6 +86,7 @@ impl Application for RollForGrue {
         let mut app: RollForGrue = RollForGrue{
             last_result: 0,
             pcs: std::vec::Vec::<pc::PC>::new(),
+            light_level: Lighting::Light,
         };
 
         // Add PCs
@@ -85,17 +102,29 @@ impl Application for RollForGrue {
     }
 
     fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
+        match _message {
+            Self::Message::LightingSelected(lighting) => {
+                self.light_level = lighting
+            },
+            _ => {},
+        }
         self.last_result = self.pcs[0].check(pc::Ability::Wisdom, pc::Proficiency::Perception, dice::Advantage::None);
         Command::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
         let value: u8 = self.last_result as u8;
+        log::info!("{}", self.light_level);
         iced::widget::container(
             iced::widget::row![
-                RollForGrue::roll_slider(value, "Perception"),
-                RollForGrue::roll_slider(value, "Insight"),
-                RollForGrue::roll_slider(value, "Investigation"),
+                iced::widget::row![
+                    self.roll_slider(value, "Perception"),
+                    self.roll_slider(value, "Insight"),
+                    self.roll_slider(value, "Investigation"),
+                ],
+                iced::widget::column![
+                    self.light_toggle(),
+                ]
             ]
         )
         .into()
