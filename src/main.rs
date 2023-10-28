@@ -41,16 +41,18 @@ pub enum GrueMessage {
 }
 
 impl <'a> RollForGrue {
-    fn roll_slider(value: u8) -> iced::widget::Container<'a, GrueMessage, iced::Renderer> {
+    fn roll_slider(value: u8, roll_type: &'a str) -> iced::widget::Container<'a, GrueMessage, iced::Renderer> {
         let v_slider = iced::widget::vertical_slider(0u8..=30u8, value, <RollForGrue as iced::Application>::Message::ValueUpdated);
         let text = iced::widget::text(format!("{value}"));
         iced::widget::container(
             iced::widget::column![
                 iced::widget::container(v_slider)
-                    .width(iced::Length::Shrink)
+                    .width(100)
                     .height(iced::Length::Fill).center_x(),
                 iced::widget::container(text)
-                    .width(iced::Length::Shrink).center_x(),
+                    .width(100).center_x(),
+                iced::widget::container(roll_type)
+                    .width(100).center_x(),
             ]
         )
     }
@@ -91,9 +93,9 @@ impl Application for RollForGrue {
         let value: u8 = self.last_result as u8;
         iced::widget::container(
             iced::widget::row![
-                RollForGrue::roll_slider(value),
-                RollForGrue::roll_slider(value),
-                RollForGrue::roll_slider(value),
+                RollForGrue::roll_slider(value, "Perception"),
+                RollForGrue::roll_slider(value, "Insight"),
+                RollForGrue::roll_slider(value, "Investigation"),
             ]
         )
         .into()
