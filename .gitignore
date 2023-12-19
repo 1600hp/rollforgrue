@@ -1,3 +1,4 @@
 /target
 /.vscode
 /characters
+**/__pycache__/
