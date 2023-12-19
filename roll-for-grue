@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+
+import argparse
+import pathlib
+
+from pygrue import app
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="roll-for-grue",
+        description="DM with ease, even in the dark!",
+    )
+    parser.add_argument("-c", "--characters",
+                        default="characters/",
+                        type=pathlib.Path,
+    )
+    args = parser.parse_args()
+    app.App(args.characters)
