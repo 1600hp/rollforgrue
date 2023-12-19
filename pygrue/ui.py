@@ -1,4 +1,4 @@
-import random
+import enum
 from typing import Iterable
 
 from asciimatics.event import KeyboardEvent
@@ -11,19 +11,27 @@ from .environment import Lighting
 from .pc import Ability, PC, Proficiency
 
 
+class Palette(enum.Enum):
+    BRIGHT = "label"
+    DIM = "field"
+    DARK = "disabled"
+
+
 class BarLabel(Label):
-    def __init__(self, value: int, force_update: callable, length: int = 30) -> None:
+    def __init__(self, colour: str, force_update: callable, length: int = 30) -> None:
         self.length = length
-        self.target_value = value
+        self.target_value = 0
         self._done_sweep = False
         self._force_update_callback = force_update
         self._scan_ascending = True
-        super(BarLabel, self).__init__(self._val_to_ascii(value))
+        self.custom_colour = colour
+        super(BarLabel, self).__init__(self._val_to_ascii(0))
 
     def _val_to_ascii(self, value: int) -> str:
         return "█" * min(self.length, value) + "▒" * (self.length - min(self.length, value))
 
-    def set_target(self, value: int) -> None:
+    def set_target(self, colour: str, value: int) -> None:
+        self.custom_colour = colour
         self._scan_ascending = value >= self.target_value
         self.target_value = value
         self._done_sweep = False
@@ -43,6 +51,7 @@ class BarLabel(Label):
                 return False
 
     def update(self, *args, **kwargs):
+        assert self.custom_colour is not None
         if not self._done_sweep:
             self._force_update_callback()
             self._done_sweep = self._sweep_update()
@@ -64,17 +73,17 @@ class RollBar:
         self.name_widget = Label(pc.name)
         self.value_widget = Label(0)
         self.value = 0
-        self.bar_widget = BarLabel(0, force_update)
+        self.bar_widget = BarLabel("disabled", force_update)
 
     def populate(self, layout: Layout) -> None:
         layout.add_widget(self.name_widget, 0)
         layout.add_widget(self.value_widget, 1)
         layout.add_widget(self.bar_widget, 2)
-        self.refresh(0)
+        self.refresh("disabled", 0)
 
-    def refresh(self, value: int) -> None:
+    def refresh(self, colour: str, value: int) -> None:
         self.value_widget.text = str(value)
-        self.bar_widget.set_target(value)
+        self.bar_widget.set_target(colour, value)
 
 
 class VisualView(Frame):
@@ -120,8 +129,17 @@ class VisualView(Frame):
 
     def _refresh_bars(self) -> None:
         for bar in self._roll_bars:
+            match self.lighting_radio.value:
+                case Lighting.BRIGHT:
+                    colour = Palette.BRIGHT
+                case Lighting.DIM:
+                    colour = Palette.BRIGHT if bar.pc.darkvision else Palette.DIM
+                case Lighting.DARK:
+                    colour = Palette.DIM if bar.pc.darkvision else Palette.DARK
+                case _:
+                    raise ValueError(self.lighting_radio.value)
             result = bar.pc.sight_based_check(bar.ability, self.lighting_radio.value, bar.proficiency)
-            bar.refresh(result)
+            bar.refresh(colour.value, result)
 
     def process_event(self, event):
         if isinstance(event, KeyboardEvent):
