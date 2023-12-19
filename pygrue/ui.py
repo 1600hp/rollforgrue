@@ -7,7 +7,8 @@ from asciimatics.scene import Scene
 from asciimatics.screen import Screen
 from asciimatics.widgets import Button, Divider, Frame, Label, Layout, RadioButtons
 
-from .environment import Lighting
+from .dice import Advantage
+from .environment import Lighting, Sense
 from .pc import Ability, PC, Proficiency
 
 
@@ -94,9 +95,7 @@ class VisualView(Frame):
                                          on_load=None,
                                          hover_focus=False,
                                          can_scroll=False,
-                                         title="VISUALS")
-        self.lighting = Lighting.BRIGHT
-
+                                         title="SENSES")
         layout = Layout([12, 3, 30, 20], fill_frame=False)
         self.add_layout(layout)
         self._roll_bars: list[RollBar] = []
@@ -119,26 +118,37 @@ class VisualView(Frame):
 
         # Controls
         layout.add_widget(Button("REFRESH", self._refresh_bars), 3)
+        self.sense_radio = RadioButtons([("SIGHT", Sense.SIGHT),
+                                         ("HEARING", Sense.HEARING),
+                                         ("SMELL", Sense.SMELL),],
+                                        label="SENSE",
+                                        on_change=self._refresh_bars)
         self.lighting_radio = RadioButtons([("BRIGHT", Lighting.BRIGHT),
                                             ("DIM", Lighting.DIM),
                                             ("DARK", Lighting.DARK),],
                                            label="LIGHTING",
                                            on_change=self._refresh_bars)
+        layout.add_widget(self.sense_radio, column=3)
         layout.add_widget(self.lighting_radio, column=3)
         self.fix()
 
     def _refresh_bars(self) -> None:
         for bar in self._roll_bars:
-            match self.lighting_radio.value:
-                case Lighting.BRIGHT:
-                    colour = Palette.BRIGHT
-                case Lighting.DIM:
-                    colour = Palette.BRIGHT if bar.pc.darkvision else Palette.DIM
-                case Lighting.DARK:
-                    colour = Palette.DIM if bar.pc.darkvision else Palette.DARK
-                case _:
-                    raise ValueError(self.lighting_radio.value)
-            result = bar.pc.sight_based_check(bar.ability, self.lighting_radio.value, bar.proficiency)
+            if self.sense_radio.value is Sense.SIGHT:
+                match self.lighting_radio.value:
+                    case Lighting.BRIGHT:
+                        colour = Palette.BRIGHT
+                    case Lighting.DIM:
+                        colour = Palette.BRIGHT if bar.pc.darkvision else Palette.DIM
+                    case Lighting.DARK:
+                        colour = Palette.DIM if bar.pc.darkvision else Palette.DARK
+                    case _:
+                        raise ValueError(self.lighting_radio.value)
+                result = bar.pc.sight_based_check(bar.ability, self.lighting_radio.value, bar.proficiency)
+            else:
+                colour = Palette.BRIGHT
+                result = bar.pc.check(bar.ability, bar.proficiency, Advantage.NONE)
+
             bar.refresh(colour.value, result)
 
     def process_event(self, event):
