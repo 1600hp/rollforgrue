@@ -12,36 +12,40 @@ from .pc import Ability, PC, Proficiency
 
 
 class BarLabel(Label):
-    def __init__(self, value: int, force_update: callable, hystersis: int = 20, length: int = 30) -> None:
-        self.hystersis_max = hystersis
-        self.hystersis = hystersis
+    def __init__(self, value: int, force_update: callable, length: int = 30) -> None:
         self.length = length
         self.target_value = value
+        self._done_sweep = False
         self._force_update_callback = force_update
+        self._scan_ascending = True
         super(BarLabel, self).__init__(self._val_to_ascii(value))
 
     def _val_to_ascii(self, value: int) -> str:
-        return "█" * min(self.length, value) + "·" * (self.length - min(self.length, value))
+        return "█" * min(self.length, value) + "▒" * (self.length - min(self.length, value))
 
     def set_target(self, value: int) -> None:
+        self._scan_ascending = value >= self.target_value
         self.target_value = value
-        self.hystersis = self.hystersis_max
+        self._done_sweep = False
+
+    def _sweep_update(self) -> bool:
+        target_text = self._val_to_ascii(self.target_value)
+        scan_range = list(range(len(target_text)))
+        scan_iterator = scan_range if self._scan_ascending else list(reversed(scan_range))
+        for i in scan_iterator:
+            if self.text[i] != target_text[i] and self.text[i] != "▓":
+                self.text = self.text[:i] + "▓" + self.text[i + 1:]
+                return False
+
+        for i in scan_iterator:
+            if self.text[i] == "▓":
+                self.text = self.text[:i] + target_text[i] + self.text[i + 1:]
+                return False
 
     def update(self, *args, **kwargs):
-        if self.hystersis > 0:
-            self.hystersis -= 1
+        if not self._done_sweep:
             self._force_update_callback()
-
-            target_text = self._val_to_ascii(self.target_value)
-            for i in range(len(target_text)):
-                if self.text[i] != target_text[i] and self.text[i] != "•":
-                    self.text = self.text[:i] + "•" + self.text[i + 1:]
-                    break
-            else:
-                for i in range(len(target_text)):
-                    if self.text[i] == "•":
-                        self.text = self.text[:i] + target_text[i] + self.text[i + 1:]
-                        break
+            self._done_sweep = self._sweep_update()
         else:
             self.text = self._val_to_ascii(self.target_value)
 
@@ -66,7 +70,7 @@ class RollBar:
         layout.add_widget(self.name_widget, 0)
         layout.add_widget(self.value_widget, 1)
         layout.add_widget(self.bar_widget, 2)
-        self.refresh(20)
+        self.refresh(0)
 
     def refresh(self, value: int) -> None:
         self.value_widget.text = str(value)
@@ -78,7 +82,7 @@ class VisualView(Frame):
         super(VisualView, self).__init__(screen,
                                          screen.height,
                                          80, # screen.width,
-                                         on_load=self._refresh,
+                                         on_load=None,
                                          hover_focus=False,
                                          can_scroll=False,
                                          title="VISUALS")
@@ -105,16 +109,16 @@ class VisualView(Frame):
             roll_bar.populate(layout)
 
         # Controls
-        layout.add_widget(Button("REFRESH", self._refresh), 3)
+        layout.add_widget(Button("REFRESH", self._refresh_bars), 3)
         self.lighting_radio = RadioButtons([("BRIGHT", Lighting.BRIGHT),
                                             ("DIM", Lighting.DIM),
                                             ("DARK", Lighting.DARK),],
                                            label="LIGHTING",
-                                           on_change=self._refresh)
+                                           on_change=self._refresh_bars)
         layout.add_widget(self.lighting_radio, column=3)
         self.fix()
 
-    def _refresh(self) -> None:
+    def _refresh_bars(self) -> None:
         for bar in self._roll_bars:
             result = bar.pc.sight_based_check(bar.ability, self.lighting_radio.value, bar.proficiency)
             bar.refresh(result)
@@ -124,7 +128,7 @@ class VisualView(Frame):
             if event.key_code in [ord("q"), ord("Q"), Screen.ctrl("c")]:
                 raise StopApplication("User quit")
             elif event.key_code in [ord("r"), ord("R")]:
-                self._refresh()
+                self._refresh_bars()
 
             self.screen.force_update()
 
