@@ -10,6 +10,9 @@ from .environment import Lighting
 
 
 class Ability(enum.Enum):
+    """
+    Enumerated ability scores.
+    """
     STRENGTH = enum.auto()
     DEXTERITY = enum.auto()
     CONSTITUTION = enum.auto()
@@ -19,6 +22,13 @@ class Ability(enum.Enum):
 
     @staticmethod
     def from_str(source: str) -> Ability:
+        """
+        Convert a string to an `Ability` enum. Returns the appropriate enum
+        value for the source string, where the string must be the full name
+        of the ability, case insensitive.
+
+        :params source: The string to convert
+        """
         for value in Ability:
             if value.name == source.upper():
                 return value
@@ -26,12 +36,22 @@ class Ability(enum.Enum):
 
 
 class Proficiency(enum.Enum):
+    """
+    Enumerated possible proficienies.
+    """
     INSIGHT = enum.auto()
     INVESTIGATION = enum.auto()
     PERCEPTION = enum.auto()
 
     @staticmethod
     def from_str(source: str) -> Proficiency:
+        """
+        Convert a string to a `Proficiency` enum. Returns the appropriate enum
+        value for the source string, where the string must be the full name
+        of the proficiency, case insensitive.
+
+        :params source: The string to convert
+        """
         for value in Proficiency:
             if value.name == source.upper():
                 return value
@@ -39,12 +59,21 @@ class Proficiency(enum.Enum):
 
 
 class ProficiencyLevel(enum.IntEnum):
+    """
+    Proficiency levels, as an integer. Multiplying this value by a character's
+    proficiency bonus will result in the correct modifier for the given
+    proficiency.
+    """
     NONE = 0
     PROFICIENCY = 1
     EXPERTISE = 2
 
 
 class PC:
+    """
+    A character with all relevant attributes for calculating behind-the-screen
+    ability checks.
+    """
     __slots__ = {
         "abilities": "A `dict` between `Ability`s and modifiers",
         "name": "The character name",
@@ -54,6 +83,9 @@ class PC:
     }
 
     def __init__(self, character_sheet: pathlib.Path):
+        """
+        :params character_sheet: A path to a JSON-encoded character sheet
+        """
         with open(character_sheet, 'r') as sheet:
             data = json.load(sheet)
             self.name = data["name"]
@@ -74,6 +106,12 @@ class PC:
 
     @staticmethod
     def _modifier_from_score(score: int) -> int:
+        """
+        Convert an ability score to the corresponding modifier
+        (i.e. 8 -> -1, 11 -> 1, etc.)
+
+        :params score: The ability score (usually from 1-20)
+        """
         diff = score - 10
         return math.floor(diff / 2)
 
@@ -81,12 +119,26 @@ class PC:
               ability: Ability,
               proficiency: Proficiency | None = None,
               advantage: Advantage = Advantage.NONE) -> int:
+        """
+        Perform an ability check, with optional proficiency and advantage
+        modifiers.
+
+        :params ability: The ability to use for the check
+        :params proficiency: A proficiency to apply to the check (by default, no proficiency applies)
+        :params advantage: The advantage state to apply to the check
+        """
         roll = Dice.d(20)
         roll.modify(self.abilities[ability] + self.proficiencies[proficiency] * self.proficiency_bonus)
         result = roll.apply(advantage)
         return result
 
     def with_lighting(self, lighting: Lighting) -> Advantage:
+        """
+        Return the advantage state of the character's sight-based checks under
+        the given lighting condition, based on the character's darkvision.
+
+        :params lighting: The lighting condition under which to sense
+        """
         if lighting is Lighting.BRIGHT:
             return Advantage.NONE
         elif lighting is Lighting.DIM:
@@ -101,5 +153,15 @@ class PC:
                           lighting: Lighting,
                           proficiency: Proficiency | None = None,
                           advantage: Advantage = Advantage.NONE) -> int:
+        """
+        Perform an ability check, with optional proficiency and advantage
+        modifiers, applying the intrinsic advantage state the results from
+        the lighting conditions and the character's darkvision.
+
+        :params ability: The ability to use for the check
+        :params lighting: The lighting conditions under which the check is made
+        :params proficiency: A proficiency to apply to the check, before lighting conditions (by default, none)
+        :params advantage: The advantage state to apply to the check
+        """
         total_advantage = advantage + self.with_lighting(lighting)
         return self.check(ability, proficiency, total_advantage)
