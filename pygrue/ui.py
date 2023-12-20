@@ -284,8 +284,9 @@ class ExplorationView(Frame):
         if obs_client.scenes is not None:
             self.scene_radio = RadioButtons([(scene, scene) for scene in obs_client.scenes],
                                             label="OBS SCENE",
-                                            on_change=lambda: obs_client.set_scene(self.scene_radio.value))
+                                            on_change=lambda: obs_client.set_scene(self.scene_radio.value, ignore_unchecked=True))
             layout.add_widget(self.scene_radio, 5)
+            self.scene_radio.value = obs_client.get_scene()
         else:
             layout.add_widget(Label("<NO OBS CONNECTION>"), 5)
 

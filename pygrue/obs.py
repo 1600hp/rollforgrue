@@ -8,6 +8,7 @@ from obswebsocket.exceptions import ConnectionFailure
 class OBSClient:
     __slots__ = {
         "address": "The OBS server address",
+        "checked": "`True` if a caller has queried `get_scene`, `False` previously.",
         "client": "The OBS client",
         "password": "The OBS server password",
         "port": "The OBS server port",
@@ -31,5 +32,14 @@ class OBSClient:
             self.client = None
             self.scenes = None
 
-    def set_scene(self, scene_name: str) -> None:
-        self.client.call(requests.SetCurrentProgramScene(sceneName=scene_name))
+    def set_scene(self, scene_name: str, ignore_unchecked: bool) -> None:
+        if ignore_unchecked and not self.checked:
+            return
+
+        current = self.get_scene()
+        if current != scene_name:
+            self.client.call(requests.SetCurrentProgramScene(sceneName=scene_name))
+
+    def get_scene(self) -> None:
+        self.checked = True
+        return self.client.call(requests.GetCurrentProgramScene()).getCurrentProgramSceneName()
