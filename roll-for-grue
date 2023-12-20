@@ -15,5 +15,9 @@ if __name__ == "__main__":
                         default="characters/",
                         type=pathlib.Path,
     )
+    parser.add_argument("-w", "--websocket",
+                        default="websocket.json",
+                        type=pathlib.Path,
+    )
     args = parser.parse_args()
-    app.App(args.characters)
+    app.App(args.characters, args.websocket)

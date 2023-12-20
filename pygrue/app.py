@@ -1,7 +1,8 @@
 import pathlib
 
-from pygrue.pc import PC
-from pygrue.ui import UI
+from .pc import PC
+from .ui import UI
+from .obs import OBSClient
 
 
 class App:
@@ -10,10 +11,11 @@ class App:
     will immediately block and begin execution.
     """
     __slots__ = {
-        "pcs": "A list of the Character objects tracked"
+        "pcs": "A list of the Character objects tracked",
+        "obs_client": "The client used to transfer data to/from OBS",
     }
 
-    def __init__(self, character_dir: pathlib.Path) -> None:
+    def __init__(self, character_dir: pathlib.Path, config_path: pathlib.Path) -> None:
         """
         :params character_dir: A directory with one or more character JSON files.
         """
@@ -21,4 +23,7 @@ class App:
             PC(next_char)
             for next_char in character_dir.iterdir()
         ]
-        UI(self.pcs)
+
+        self.obs_client = OBSClient(config_path)
+
+        UI(self.pcs, self.obs_client)

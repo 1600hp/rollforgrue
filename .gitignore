@@ -2,3 +2,4 @@
 /.vscode
 /characters
 **/__pycache__/
+websocket.json

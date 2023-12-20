@@ -10,6 +10,7 @@ from asciimatics.widgets import Button, Divider, Frame, Label, Layout, RadioButt
 from .dice import Advantage
 from .environment import Lighting, Sense
 from .pc import Ability, PC, Proficiency
+from .obs import OBSClient
 
 
 class Palette(enum.Enum):
@@ -194,10 +195,11 @@ class ExplorationView(Frame):
         "lighting_radio": "A radio button controlling the relevant lighting conditions",
     }
 
-    def __init__(self, screen: Screen, pcs: Iterable[PC]) -> None:
+    def __init__(self, screen: Screen, pcs: Iterable[PC], obs_client: OBSClient) -> None:
         """
         :params screen: The `Screen` which will display this view
         :params pcs: All `PC`s associated with this view
+        :params obs_client: The client used to connect to OBS
         """
         super(ExplorationView, self).__init__(screen,
                                          screen.height,
@@ -205,7 +207,7 @@ class ExplorationView(Frame):
                                          on_load=None,
                                          hover_focus=False,
                                          can_scroll=False,
-                                         title="SENSES")
+                                         title="CONTROL PANEL")
         layout = Layout([12, 3, 25, 2, 3, 20], fill_frame=False)
         self.add_layout(layout)
         self._roll_bars: list[RollBar] = []
@@ -278,6 +280,15 @@ class ExplorationView(Frame):
         layout.add_widget(self.lighting_radio, column=5)
         layout.add_widget(Divider(), 5)
 
+        # Scene switcher
+        if obs_client.scenes is not None:
+            self.scene_radio = RadioButtons([(scene, scene) for scene in obs_client.scenes],
+                                            label="OBS SCENE",
+                                            on_change=lambda: obs_client.set_scene(self.scene_radio.value))
+            layout.add_widget(self.scene_radio, 5)
+        else:
+            layout.add_widget(Label("<NO OBS CONNECTION>"), 5)
+
         # Finalize
         self.fix()
 
@@ -334,14 +345,17 @@ class UI:
     """
 
     __slots__ = {
-        "_pcs": "An iterable of the `PC`s associated with this UI"
+        "_pcs": "An iterable of the `PC`s associated with this UI",
+        "_client": "The client used to connect to OBS",
     }
 
-    def __init__(self, pcs: Iterable[PC]) -> None:
+    def __init__(self, pcs: Iterable[PC], obs_client: OBSClient) -> None:
         """
         :params pcs: The PCs that will be associated with this UI
+        :params obs_client: The client used to connect to OBS
         """
         self._pcs = pcs
+        self._client = obs_client
         self.run()
 
     def _play(self, screen: Screen, scene: Scene) -> None:
@@ -351,7 +365,7 @@ class UI:
         :params screen: The `Screen` to play
         :params scene: The starting `Scene`
         """
-        views = [ExplorationView(screen, self._pcs)]
+        views = [ExplorationView(screen, self._pcs, self._client)]
         screen.play([Scene(views, -1, name="Main")],
                     stop_on_resize=True,
                     start_scene=scene,
