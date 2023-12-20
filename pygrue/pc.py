@@ -42,6 +42,7 @@ class Proficiency(enum.Enum):
     INSIGHT = enum.auto()
     INVESTIGATION = enum.auto()
     PERCEPTION = enum.auto()
+    STEALTH = enum.auto()
 
     @staticmethod
     def from_str(source: str) -> Proficiency:
@@ -56,6 +57,17 @@ class Proficiency(enum.Enum):
             if value.name == source.upper():
                 return value
         raise ValueError(f"Cannot interpret {source} as Proficiency")
+
+    def sight_affected(self) -> bool:
+        """
+        Returns true if rolls using this proficiency can be affected by line of
+        sight and lighting conditions.
+        """
+        return self in [
+            Proficiency.INSIGHT,
+            Proficiency.INVESTIGATION,
+            Proficiency.PERCEPTION,
+        ]
 
 
 class ProficiencyLevel(enum.IntEnum):
@@ -78,6 +90,7 @@ class PC:
         "abilities": "A `dict` between `Ability`s and modifiers",
         "name": "The character name",
         "proficiencies": "A `defaultdict` between `Proficiency`s and `ProficiencyLevel`s (default 0)",
+        "proficiency_advantages": "A `defaultdict` between `Proficiency`s and `Advantage`s (default `NONE`)",
         "proficiency_bonus": "The integer proficiency bonus the character uses",
         "darkvision": "`True` if the character has darkvision, false otherwise",
     }
@@ -98,6 +111,18 @@ class PC:
             self.proficiencies = defaultdict(lambda: 0)
             for name, value in data["proficiencies"].items():
                 self.proficiencies[Proficiency.from_str(name)] = ProficiencyLevel(value)
+
+            self.proficiency_advantages = defaultdict(lambda: Advantage.NONE)
+            for name, value in data["proficiency_advantages"].items():
+                match value:
+                    case 0:
+                        self.proficiency_advantages[Proficiency.from_str(name)] = Advantage.NONE
+                    case 1:
+                        self.proficiency_advantages[Proficiency.from_str(name)] = Advantage.ADVANTAGE
+                    case -1:
+                        self.proficiency_advantages[Proficiency.from_str(name)] = Advantage.DISADVANTAGE
+                    case _:
+                        raise ValueError(f"Proficiency advantages must be from -1, 0, or 1, not {value}")
 
             self.proficiency_bonus = data["proficiency_bonus"]
             self.darkvision = data["darkvision"]
@@ -129,7 +154,8 @@ class PC:
         """
         roll = Dice.d(20)
         roll.modify(self.abilities[ability] + self.proficiencies[proficiency] * self.proficiency_bonus)
-        result = roll.apply(advantage)
+        total_advantage = self.proficiency_advantages[proficiency] + advantage
+        result = roll.apply(total_advantage)
         return result
 
     def with_lighting(self, lighting: Lighting) -> Advantage:

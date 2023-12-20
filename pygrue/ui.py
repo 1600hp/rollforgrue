@@ -5,7 +5,7 @@ from asciimatics.event import Event, KeyboardEvent
 from asciimatics.exceptions import ResizeScreenError, StopApplication
 from asciimatics.scene import Scene
 from asciimatics.screen import Screen
-from asciimatics.widgets import Button, Divider, Frame, Label, Layout, RadioButtons
+from asciimatics.widgets import Button, Divider, Frame, Label, Layout, RadioButtons, VerticalDivider
 
 from .dice import Advantage
 from .environment import Lighting, Sense
@@ -19,6 +19,7 @@ class Palette(enum.Enum):
     BRIGHT = "label"
     DIM = "field"
     DARK = "disabled"
+    BAD = "invalid"
 
 
 class BarLabel(Label):
@@ -114,6 +115,7 @@ class RollBar:
 
     __slots__ = {
         "ability": "The ability to which this bar is linked",
+        "adv_widget": "The `Label` widget displaying the level of advantage applied to this roll",
         "bar_widget": "The `BarLabel` widget representing the bar itself",
         "force_update": "The callable that will be invoked when this bar requires an update",
         "name_widget": "The `Label` widget that names this bar",
@@ -141,6 +143,8 @@ class RollBar:
         self.value_widget = Label(0)
         self.value = 0
         self.bar_widget = BarLabel("disabled", force_update)
+        self.adv_widget = Label("-")
+        self.adv_widget.custom_colour = Palette.DIM.value
 
     def populate(self, layout: Layout) -> None:
         """
@@ -152,17 +156,32 @@ class RollBar:
         layout.add_widget(self.name_widget, 0)
         layout.add_widget(self.value_widget, 1)
         layout.add_widget(self.bar_widget, 2)
-        self.refresh(Palette.DARK.value, 0)
+        layout.add_widget(self.adv_widget, 3)
+        self.refresh(Palette.DARK.value, 0, Advantage.NONE)
 
-    def refresh(self, colour: str, value: int) -> None:
+    def refresh(self, colour: str, value: int, advantage: Advantage) -> None:
         """
         Refresh the widgets composing the bar display.
 
         :params colour: The string palette colour to apply to the bar
         :params value: The new value to display
+        :params advantage: The level of advantage to display
         """
         self.value_widget.text = str(value)
         self.bar_widget.set_target(colour, value)
+        match advantage:
+            case Advantage.NONE:
+                self.adv_widget.text = "-"
+                self.adv_widget.custom_colour = Palette.DIM.value
+            case Advantage.ADVANTAGE:
+                self.adv_widget.text = "▲"
+                self.adv_widget.custom_colour = Palette.BRIGHT.value
+            case Advantage.DISADVANTAGE:
+                self.adv_widget.text = "▼"
+                self.adv_widget.custom_colour = Palette.BAD.value
+            case Advantage.FAIL:
+                self.adv_widget.text = "X"
+                self.adv_widget.custom_colour = Palette.BAD.value
 
 
 class ExplorationView(Frame):
@@ -182,19 +201,23 @@ class ExplorationView(Frame):
         """
         super(ExplorationView, self).__init__(screen,
                                          screen.height,
-                                         80, # screen.width,
+                                         90, # screen.width,
                                          on_load=None,
                                          hover_focus=False,
                                          can_scroll=False,
                                          title="SENSES")
-        layout = Layout([12, 3, 30, 20], fill_frame=False)
+        layout = Layout([12, 3, 25, 2, 3, 20], fill_frame=False)
         self.add_layout(layout)
         self._roll_bars: list[RollBar] = []
+
+        # Vertical divider
+        layout.add_widget(VerticalDivider(), 4)
 
         # Perception
         layout.add_widget(Divider(), 0)
         layout.add_widget(Divider(), 1)
         layout.add_widget(Label("PERCEPTION"), 2)
+        layout.add_widget(Divider(), 3)
         for pc in pcs:
             roll_bar = RollBar(pc, Ability.WISDOM, Proficiency.PERCEPTION, screen.force_update)
             self._roll_bars.append(roll_bar)
@@ -204,25 +227,56 @@ class ExplorationView(Frame):
         layout.add_widget(Divider(), 0)
         layout.add_widget(Divider(), 1)
         layout.add_widget(Label("INVESTIGATION"), 2)
+        layout.add_widget(Divider(), 3)
         for pc in pcs:
             roll_bar = RollBar(pc, Ability.INTELLIGENCE, Proficiency.INVESTIGATION, screen.force_update)
             self._roll_bars.append(roll_bar)
             roll_bar.populate(layout)
 
+        # Insight
+        layout.add_widget(Divider(), 0)
+        layout.add_widget(Divider(), 1)
+        layout.add_widget(Label("INSIGHT"), 2)
+        layout.add_widget(Divider(), 3)
+        for pc in pcs:
+            roll_bar = RollBar(pc, Ability.WISDOM, Proficiency.INSIGHT, screen.force_update)
+            self._roll_bars.append(roll_bar)
+            roll_bar.populate(layout)
+
+        # Stealth
+        layout.add_widget(Divider(), 0)
+        layout.add_widget(Divider(), 1)
+        layout.add_widget(Label("STEALTH"), 2)
+        layout.add_widget(Divider(), 3)
+        for pc in pcs:
+            roll_bar = RollBar(pc, Ability.DEXTERITY, Proficiency.STEALTH, screen.force_update)
+            self._roll_bars.append(roll_bar)
+            roll_bar.populate(layout)
+
+        # End of rollbar pane
+        for col in range(4):
+            layout.add_widget(Divider(), col)
+
         # Controls
-        layout.add_widget(Button("REFRESH", self._refresh_bars), 3)
+        layout.add_widget(Divider(), 5)
+        layout.add_widget(Button("REFRESH", self._refresh_bars), 5)
+
+        layout.add_widget(Divider(), 5)
         self.sense_radio = RadioButtons([("SIGHT", Sense.SIGHT),
                                          ("HEARING", Sense.HEARING),
                                          ("SMELL", Sense.SMELL),],
                                         label="SENSE",
                                         on_change=self._refresh_bars)
-        layout.add_widget(self.sense_radio, column=3)
+        layout.add_widget(self.sense_radio, column=5)
+
+        layout.add_widget(Divider(), 5)
         self.lighting_radio = RadioButtons([("BRIGHT", Lighting.BRIGHT),
                                             ("DIM", Lighting.DIM),
                                             ("DARK", Lighting.DARK),],
                                            label="LIGHTING",
                                            on_change=self._refresh_bars)
-        layout.add_widget(self.lighting_radio, column=3)
+        layout.add_widget(self.lighting_radio, column=5)
+        layout.add_widget(Divider(), 5)
 
         # Finalize
         self.fix()
@@ -234,20 +288,26 @@ class ExplorationView(Frame):
         requested.
         """
         for bar in self._roll_bars:
-            if self.sense_radio.value is Sense.SIGHT:
-                match bar.pc.with_lighting(self.lighting_radio.value):
+            inherent_advantage = bar.pc.proficiency_advantages[bar.proficiency]
+
+            if self.sense_radio.value is Sense.SIGHT and bar.proficiency.sight_affected():
+                lighting_advantage = bar.pc.with_lighting(self.lighting_radio.value)
+                match lighting_advantage:
                     case Advantage.DISADVANTAGE:
                         colour = Palette.DIM
                     case Advantage.FAIL:
                         colour = Palette.DARK
                     case _:
                         colour = Palette.BRIGHT
+
+                total_advantage_level = lighting_advantage + inherent_advantage
                 result = bar.pc.sight_based_check(bar.ability, self.lighting_radio.value, bar.proficiency)
             else:
                 colour = Palette.BRIGHT
+                total_advantage_level = inherent_advantage
                 result = bar.pc.check(bar.ability, bar.proficiency, Advantage.NONE)
 
-            bar.refresh(colour.value, result)
+            bar.refresh(colour.value, result, total_advantage_level)
 
     def process_event(self, event: Event) -> None:
         """
