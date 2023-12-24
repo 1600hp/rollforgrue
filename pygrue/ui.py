@@ -5,7 +5,7 @@ from asciimatics.event import Event, KeyboardEvent
 from asciimatics.exceptions import ResizeScreenError, StopApplication
 from asciimatics.scene import Scene
 from asciimatics.screen import Screen
-from asciimatics.widgets import Button, Divider, Frame, Label, Layout, RadioButtons, VerticalDivider
+from asciimatics.widgets import Button, Divider, Frame, Label, Layout, RadioButtons, TextBox, VerticalDivider
 
 from .dice import Advantage
 from .environment import Lighting, Sense
@@ -191,9 +191,14 @@ class ExplorationView(Frame):
     """
     __slots__ = {
         "_roll_bars": "All `RollBar` objects associated with this view",
-        "sense_radio": "A radio button controlling the relevant sense",
+        "_stinger_buttons": "All `Button` objects associated with stingers",
+        "_stinger_button_labels": "All `TextBox` objects associated with stinger buttons",
         "lighting_radio": "A radio button controlling the relevant lighting conditions",
+        "obs_client": "The OBS WebSocket client associated with this view",
+        "sense_radio": "A radio button controlling the relevant sense",
     }
+
+    MAX_STINGERS = 10
 
     def __init__(self, screen: Screen, pcs: Iterable[PC], obs_client: OBSClient) -> None:
         """
@@ -211,6 +216,9 @@ class ExplorationView(Frame):
         layout = Layout([12, 3, 25, 2, 3, 20], fill_frame=False)
         self.add_layout(layout)
         self._roll_bars: list[RollBar] = []
+        self._stinger_buttons: list[Button] = []
+        self._stinger_button_labels: list[TextBox] = []
+        self.obs_client = obs_client
 
         # Vertical divider
         layout.add_widget(VerticalDivider(), 4)
@@ -259,6 +267,31 @@ class ExplorationView(Frame):
         for col in range(4):
             layout.add_widget(Divider(), col)
 
+        # Vertical divider
+        layout.add_widget(VerticalDivider(), 1)
+
+        # Transitions
+        layout.add_widget(Label("HOTKEYS"), 2)
+        if None: #self.obs_client.client is not None:
+            for hotkey in self.obs_client.hotkeys:
+                layout.add_widget(Button(hotkey, lambda h=hotkey: self.obs_client.trigger_hotkey(h)), 2)
+        else:
+            layout.add_widget(Label("<NO OBS>"), 2)
+
+        # Stingers
+        layout.add_widget(Label("STINGERS"), 0)
+        for _ in range(ExplorationView.MAX_STINGERS):
+            next_text = TextBox(1, as_string=True)
+            next_text.disabled = True
+            next_text.custom_colour = "label"
+            next_text.value = "[NONE]"
+            next_button = Button("play", on_click=lambda: None)
+            self._stinger_buttons.append(next_button)
+            self._stinger_button_labels.append(next_text)
+            layout.add_widget(next_text, 0)
+            layout.add_widget(next_button, 0)
+        self.rebind_stingers()
+
         # Controls
         layout.add_widget(Divider(), 5)
         layout.add_widget(Button("REFRESH", self._refresh_bars), 5)
@@ -281,12 +314,12 @@ class ExplorationView(Frame):
         layout.add_widget(Divider(), 5)
 
         # Scene switcher
-        if obs_client.scenes is not None:
-            self.scene_radio = RadioButtons([(scene, scene) for scene in obs_client.scenes],
+        if self.obs_client.scenes is not None:
+            self.scene_radio = RadioButtons([(scene, scene) for scene in self.obs_client.scenes],
                                             label="OBS SCENE",
-                                            on_change=lambda: obs_client.set_scene(self.scene_radio.value, ignore_unchecked=True))
+                                            on_change=lambda: self.change_scene(self.scene_radio.value))
             layout.add_widget(self.scene_radio, 5)
-            self.scene_radio.value = obs_client.get_scene()
+            self.scene_radio.value = self.obs_client.get_scene()
         else:
             layout.add_widget(Label("<NO OBS CONNECTION>"), 5)
 
@@ -321,6 +354,31 @@ class ExplorationView(Frame):
 
             bar.refresh(colour.value, result, total_advantage_level)
 
+    def change_scene(self, scene: str) -> None:
+        """
+        Update the current scene to the given name, making the appropriate
+        WebSocket callback and rebinding scene-linked UI elements.
+
+        :params scene: The scene name to transition into
+        """
+        self.obs_client.set_scene(scene)
+        self.rebind_stingers()
+
+    def rebind_stingers(self) -> None:
+        """
+        Relabel all stinger buttons and bind them to the appropriate callback.
+        """
+        stingers = self.obs_client.get_stingers()
+        for i in range(self.MAX_STINGERS):
+            if i < len(stingers):
+                self._stinger_buttons[i]._on_click = lambda s=stingers[i]: self.obs_client.trigger_stinger(s)
+                self._stinger_buttons[i].disabled = False
+                self._stinger_button_labels[i].value = stingers[i]
+            else:
+                self._stinger_buttons[i]._on_click = lambda: None
+                self._stinger_buttons[i].disabled = True
+                self._stinger_button_labels[i].value = "[NONE]"
+
     def process_event(self, event: Event) -> None:
         """
         Process keyboard and mouse events.
@@ -334,6 +392,8 @@ class ExplorationView(Frame):
                 self._refresh_bars()
 
             self.screen.force_update()
+            # Consume other key events
+            return
 
         # Now pass on to lower levels for normal handling of the event.
         return super(ExplorationView, self).process_event(event)
