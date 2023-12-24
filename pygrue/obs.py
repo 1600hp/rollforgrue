@@ -1,5 +1,6 @@
 import pathlib
 import json
+from typing import Any
 
 from obswebsocket import obsws, requests
 from obswebsocket.exceptions import ConnectionFailure
@@ -32,9 +33,10 @@ class OBSClient:
     __slots__ = {
         "address": "The OBS server address",
         "client": "The OBS client",
-        "hotkeys": "The list of hotkey names available",
+        "hotkeys": "A dict from hotkey names to keybinds",
         "password": "The OBS server password",
         "port": "The OBS server port",
+        "profile": "The path to the OBS profile to use",
         "scenes": "The list of available scene names, or an empty list if the connection failed",
     }
 
@@ -47,6 +49,7 @@ class OBSClient:
             self.address = config_data["address"]
             self.port = config_data["port"]
             self.password = config_data["password"]
+            self.profile = pathlib.Path(config_data["profile"])
 
         self.client = obsws(self.address, self.port, self.password)
 
@@ -54,8 +57,8 @@ class OBSClient:
             self.client.connect()
             scene_req = self.client.call(requests.GetSceneList())
             self.scenes = [scene["sceneName"] for scene in scene_req.getScenes()]
-            hotkey_req = self.client.call(requests.GetHotkeyList())
-            self.hotkeys = hotkey_req.getHotkeys()
+            self.hotkeys: dict[str, dict[str, Any]] = dict()
+            self._load_hotkeys()
         except ConnectionFailure:
             self.client = None
             self.scenes = None
@@ -78,14 +81,38 @@ class OBSClient:
         else:
             return None
 
+    def _load_hotkeys(self) -> None:
+        """
+        Load from the profile JSON the applicable hotkey names and key binds.
+
+        This populates the `hotkeys` dictionary.
+        """
+        with open(self.profile, 'r') as profile_file:
+            profile_data = json.load(profile_file)
+        scene_switcher_data = profile_data["modules"].get("advanced-scene-switcher", None)
+        if scene_switcher_data is None:
+            return None
+
+        for macro in scene_switcher_data["macros"]:
+            for condition in macro.get("conditions", []):
+                if condition["id"] == "hotkey" and condition["keyBind"]:
+                    key_bind = condition["keyBind"][0]
+                    self.hotkeys[condition["desc"]] = key_bind
+
     def trigger_hotkey(self, hotkey: str) -> None:
         """
         Trigger a hotkey in the OBS client by name.
 
         :params hotkey: The hotkey to trigger
         """
-        raise NotImplementedError("Hotkeys not implemented.")
-        self.client.call(requests.TriggerHotkeyByName(hotkeyName="hotkey"))
+        key_id = self.hotkeys[hotkey]["key"]
+        key_modifiers = dict(
+            control=self.hotkeys[hotkey].get("control", False),
+            shift=self.hotkeys[hotkey].get("shift", False),
+            alt=self.hotkeys[hotkey].get("alt", False),
+            command=self.hotkeys[hotkey].get("command", False),
+        )
+        self.client.call(requests.TriggerHotkeyByKeySequence(keyId=key_id, keyModifiers=key_modifiers))
 
     def get_stinger_group_name(self) -> str:
         """
