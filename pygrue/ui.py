@@ -100,7 +100,7 @@ class ExplorationView(Frame):
 
         # Transitions
         layout.add_widget(Label("HOTKEYS"), 2)
-        if None: #self.obs_client.client is not None:
+        if self.obs_client.client is not None:
             for hotkey in self.obs_client.hotkeys:
                 layout.add_widget(Button(hotkey, lambda h=hotkey: self.obs_client.trigger_hotkey(h)), 2)
         else:
@@ -118,7 +118,8 @@ class ExplorationView(Frame):
             self._stinger_button_labels.append(next_text)
             layout.add_widget(next_text, 0)
             layout.add_widget(next_button, 0)
-        self.rebind_stingers()
+        if self.obs_client.client is not None:
+            self.rebind_stingers()
 
         # Controls
         layout.add_widget(Divider(), 5)

@@ -31,7 +31,6 @@ class OBSClient:
 
     __slots__ = {
         "address": "The OBS server address",
-        "checked": "`True` if a caller has queried `get_scene`, `False` previously.",
         "client": "The OBS client",
         "hotkeys": "The list of hotkey names available",
         "password": "The OBS server password",
@@ -70,12 +69,14 @@ class OBSClient:
         if current != scene_name:
             self.client.call(requests.SetCurrentProgramScene(sceneName=scene_name))
 
-    def get_scene(self) -> None:
+    def get_scene(self) -> str | None:
         """
-        Returns the current scene name.
+        Returns the current scene name, or `None` if there is no connection.
         """
-        self.checked = True
-        return self.client.call(requests.GetCurrentProgramScene()).getCurrentProgramSceneName()
+        if self.client is not None:
+            return self.client.call(requests.GetCurrentProgramScene()).getCurrentProgramSceneName()
+        else:
+            return None
 
     def trigger_hotkey(self, hotkey: str) -> None:
         """
