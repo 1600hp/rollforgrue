@@ -43,6 +43,7 @@ class Proficiency(enum.Enum):
     INVESTIGATION = enum.auto()
     PERCEPTION = enum.auto()
     STEALTH = enum.auto()
+    SURVIVAL = enum.auto()
 
     @staticmethod
     def from_str(source: str) -> Proficiency:

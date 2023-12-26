@@ -51,45 +51,21 @@ class ExplorationView(Frame):
         # Vertical divider
         layout.add_widget(VerticalDivider(), 4)
 
-        # Perception
-        layout.add_widget(Divider(), 0)
-        layout.add_widget(Divider(), 1)
-        layout.add_widget(Label("PERCEPTION"), 2)
-        layout.add_widget(Divider(), 3)
-        for pc in pcs:
-            roll_bar = RollBar(pc, Ability.WISDOM, Proficiency.PERCEPTION, screen.force_update)
-            self._roll_bars.append(roll_bar)
-            roll_bar.populate(layout)
+        def add_rollbar_section(label: str, ability: Ability, proficiency: Proficiency):
+            layout.add_widget(Divider(), 0)
+            layout.add_widget(Divider(), 1)
+            layout.add_widget(Label(label), 2)
+            layout.add_widget(Divider(), 3)
+            for pc in pcs:
+                roll_bar = RollBar(pc, ability, proficiency, screen.force_update)
+                self._roll_bars.append(roll_bar)
+                roll_bar.populate(layout)
 
-        # Investigation
-        layout.add_widget(Divider(), 0)
-        layout.add_widget(Divider(), 1)
-        layout.add_widget(Label("INVESTIGATION"), 2)
-        layout.add_widget(Divider(), 3)
-        for pc in pcs:
-            roll_bar = RollBar(pc, Ability.INTELLIGENCE, Proficiency.INVESTIGATION, screen.force_update)
-            self._roll_bars.append(roll_bar)
-            roll_bar.populate(layout)
-
-        # Insight
-        layout.add_widget(Divider(), 0)
-        layout.add_widget(Divider(), 1)
-        layout.add_widget(Label("INSIGHT"), 2)
-        layout.add_widget(Divider(), 3)
-        for pc in pcs:
-            roll_bar = RollBar(pc, Ability.WISDOM, Proficiency.INSIGHT, screen.force_update)
-            self._roll_bars.append(roll_bar)
-            roll_bar.populate(layout)
-
-        # Stealth
-        layout.add_widget(Divider(), 0)
-        layout.add_widget(Divider(), 1)
-        layout.add_widget(Label("STEALTH"), 2)
-        layout.add_widget(Divider(), 3)
-        for pc in pcs:
-            roll_bar = RollBar(pc, Ability.DEXTERITY, Proficiency.STEALTH, screen.force_update)
-            self._roll_bars.append(roll_bar)
-            roll_bar.populate(layout)
+        add_rollbar_section("PERCEPTION", Ability.WISDOM, Proficiency.PERCEPTION)
+        add_rollbar_section("INVESTIGATION", Ability.WISDOM, Proficiency.PERCEPTION)
+        add_rollbar_section("INSIGHT", Ability.WISDOM, Proficiency.PERCEPTION)
+        add_rollbar_section("STEALTH", Ability.WISDOM, Proficiency.PERCEPTION)
+        add_rollbar_section("SURVIVAL", Ability.WISDOM, Proficiency.PERCEPTION)
 
         # End of rollbar pane
         for col in range(4):
