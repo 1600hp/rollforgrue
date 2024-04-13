@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import pathlib
 import json
 from typing import Any
@@ -16,6 +17,12 @@ MEDIA_INPUT_ACTION_RESTART = "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
 """
 The string to command in order to restart a media input.
 """
+
+
+@dataclass
+class Hotkey:
+    keybind: dict[str, Any]
+    scene: str | None
 
 
 class OBSClient:
@@ -57,7 +64,7 @@ class OBSClient:
             self.client.connect()
             scene_req = self.client.call(requests.GetSceneList())
             self.scenes = [scene["sceneName"] for scene in scene_req.getScenes()]
-            self.hotkeys: dict[str, dict[str, Any]] = dict()
+            self.hotkeys: dict[str, Hotkey] = dict()
             self._load_hotkeys()
         except ConnectionFailure:
             self.client = None
@@ -93,11 +100,25 @@ class OBSClient:
         if scene_switcher_data is None:
             return None
 
+        # Each macro should have at most one scene condition and one hotkey
+        # condition to be considered.
         for macro in scene_switcher_data["macros"]:
+            name = ""
+            keybind = None
+            scene = None
+
             for condition in macro.get("conditions", []):
                 if condition["id"] == "hotkey" and condition["keyBind"]:
-                    key_bind = condition["keyBind"][0]
-                    self.hotkeys[condition["desc"]] = key_bind
+                    keybind = condition["keyBind"][0]
+                    name = condition["desc"]
+                    break
+
+            for condition in macro.get("conditions", []):
+                if condition["id"] == "scene":
+                    scene = condition["sceneSelection"]["name"]
+
+            if keybind is not None:
+                self.hotkeys[name] = Hotkey(keybind, scene)
 
     def trigger_hotkey(self, hotkey: str) -> None:
         """
@@ -105,12 +126,13 @@ class OBSClient:
 
         :params hotkey: The hotkey to trigger
         """
-        key_id = self.hotkeys[hotkey]["key"]
+        keybind = self.hotkeys[hotkey].keybind
+        key_id = keybind["key"]
         key_modifiers = dict(
-            control=self.hotkeys[hotkey].get("control", False),
-            shift=self.hotkeys[hotkey].get("shift", False),
-            alt=self.hotkeys[hotkey].get("alt", False),
-            command=self.hotkeys[hotkey].get("command", False),
+            control=keybind.get("control", False),
+            shift=keybind.get("shift", False),
+            alt=keybind.get("alt", False),
+            command=keybind.get("command", False),
         )
         self.client.call(requests.TriggerHotkeyByKeySequence(keyId=key_id, keyModifiers=key_modifiers))
 
@@ -134,6 +156,18 @@ class OBSClient:
         else:
             items = []
         return [item["sourceName"] for item in items]
+
+    def get_hotkeys(self) -> list[str]:
+        """
+        Returns a list of all hotkey names associated with the current scene,
+        or an empty list if there are none.
+        """
+        scene_hotkeys = []
+        scene = self.get_scene()
+        for name, attributes in self.hotkeys.items():
+            if attributes.scene == scene:
+                scene_hotkeys.append(name)
+        return scene_hotkeys
 
     def trigger_stinger(self, stinger_name) -> None:
         """

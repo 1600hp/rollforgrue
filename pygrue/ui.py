@@ -27,6 +27,7 @@ class ExplorationView(Frame):
     }
 
     MAX_STINGERS = 10
+    MAX_HOTKEYS = 10
 
     def __init__(self, screen: Screen, pcs: Iterable[PC], obs_client: OBSClient) -> None:
         """
@@ -44,6 +45,7 @@ class ExplorationView(Frame):
         layout = Layout([12, 3, 25, 2, 3, 20], fill_frame=False)
         self.add_layout(layout)
         self._roll_bars: list[RollBar] = []
+        self._hotkey_buttons: list[Button] = []
         self._stinger_buttons: list[Button] = []
         self._stinger_button_labels: list[TextBox] = []
         self.obs_client = obs_client
@@ -76,9 +78,12 @@ class ExplorationView(Frame):
 
         # Transitions
         layout.add_widget(Label("HOTKEYS"), 2)
+        for _ in range(ExplorationView.MAX_HOTKEYS):
+            next_button = Button("[NONE]", on_click=lambda: None)
+            self._hotkey_buttons.append(next_button)
+            layout.add_widget(next_button, 2)
         if self.obs_client.client is not None:
-            for hotkey in self.obs_client.hotkeys:
-                layout.add_widget(Button(hotkey, lambda h=hotkey: self.obs_client.trigger_hotkey(h)), 2)
+            self.rebind_hotkeys()
         else:
             layout.add_widget(Label("<NO OBS>"), 2)
 
@@ -168,6 +173,19 @@ class ExplorationView(Frame):
         """
         self.obs_client.set_scene(scene)
         self.rebind_stingers()
+        self.rebind_hotkeys()
+
+    def rebind_hotkeys(self) -> None:
+        hotkeys = self.obs_client.get_hotkeys()
+        for i in range(self.MAX_HOTKEYS):
+            if i < len(hotkeys):
+                self._hotkey_buttons[i]._on_click = lambda h=hotkeys[i]: self.obs_client.trigger_hotkey(h)
+                self._hotkey_buttons[i].disabled = False
+                self._hotkey_buttons[i].text = hotkeys[i]
+            else:
+                self._hotkey_buttons[i]._on_click = lambda: None
+                self._hotkey_buttons[i].disabled = True
+                self._hotkey_buttons[i].text = "[NONE]"
 
     def rebind_stingers(self) -> None:
         """
