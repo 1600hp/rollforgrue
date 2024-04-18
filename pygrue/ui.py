@@ -64,9 +64,9 @@ class ExplorationView(Frame):
                 roll_bar.populate(layout)
 
         add_rollbar_section("PERCEPTION", Ability.WISDOM, Proficiency.PERCEPTION)
-        add_rollbar_section("INVESTIGATION", Ability.WISDOM, Proficiency.PERCEPTION)
-        add_rollbar_section("INSIGHT", Ability.WISDOM, Proficiency.PERCEPTION)
-        add_rollbar_section("STEALTH", Ability.WISDOM, Proficiency.PERCEPTION)
+        add_rollbar_section("INVESTIGATION", Ability.INTELLIGENCE, Proficiency.INVESTIGATION)
+        add_rollbar_section("INSIGHT", Ability.WISDOM, Proficiency.INSIGHT)
+        add_rollbar_section("STEALTH", Ability.DEXTERITY, Proficiency.STEALTH)
         add_rollbar_section("SURVIVAL", Ability.WISDOM, Proficiency.PERCEPTION)
 
         # End of rollbar pane
